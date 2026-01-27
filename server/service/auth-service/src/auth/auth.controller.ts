@@ -1,7 +1,16 @@
 // auth/auth.controller.ts
-import { Controller, Post, Body, Res, Req } from '@nestjs/common';
+import { Controller, Post, Body, Res, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RegisterDto, LoginDto } from './dtos';
 import type { Response, Request } from 'express';
+
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'strict' as const,
+  secure: process.env.NODE_ENV === 'production',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
 
 @Controller('auth')
 export class AuthController {
@@ -9,61 +18,62 @@ export class AuthController {
 
   @Post('register')
   async register(
-    @Body() body: { email: string; password: string; name: string },
+    @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const { accessToken, refreshToken, user } = await this.auth.register(
-      body.email,
-      body.password,
-      body.name,
+      dto.email,
+      dto.password,
+      dto.name,
+      dto.role,
     );
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-    });
+    this.setRefreshTokenCookie(res, refreshToken);
 
     return { accessToken, user };
   }
 
   @Post('login')
   async login(
-    @Body() body: { email: string; password: string },
+    @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const { accessToken, refreshToken } = await this.auth.login(
-      body.email,
-      body.password,
+      dto.email,
+      dto.password,
     );
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-    });
+    this.setRefreshTokenCookie(res, refreshToken);
 
     return { accessToken };
   }
 
   @Post('refresh')
+  @UseGuards(JwtAuthGuard)
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies.refreshToken;
+    const refreshToken = (req.cookies as Record<string, string>).refreshToken;
     const tokens = await this.auth.refresh(refreshToken);
 
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-    });
+    this.setRefreshTokenCookie(res, tokens.refreshToken);
 
     return { accessToken: tokens.accessToken };
   }
 
   @Post('logout')
+  @UseGuards(JwtAuthGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    await this.auth.logout(req.cookies.refreshToken);
+    const refreshToken = (req.cookies as Record<string, string>).refreshToken;
+    await this.auth.logout(refreshToken);
+
     res.clearCookie('refreshToken');
+
     return { success: true };
+  }
+
+  private setRefreshTokenCookie(res: Response, refreshToken: string): void {
+    res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
   }
 }

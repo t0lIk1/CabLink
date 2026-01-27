@@ -14,12 +14,21 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  USER
+  PASSENGER
+  DRIVER
+  ADMIN
+  SUPPORT
+}
+
 model User {
   id        String         @id @default(uuid())
   email     String         @unique
   password  String
   name      String?
   createdAt DateTime       @default(now())
+  role      UserRole       @default(USER)
   tokens    RefreshToken[]
 }
 
