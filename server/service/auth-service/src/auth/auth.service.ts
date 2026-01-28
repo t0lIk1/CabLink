@@ -5,6 +5,7 @@ import { UsersService } from '../users/users.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
+import { UserRole } from '../generated/prisma/enums';
 
 interface TokenPayload {
   sub: string;
@@ -26,7 +27,7 @@ export class AuthService {
     email: string,
     password: string,
     name: string,
-    role: 'DRIVER' | 'PASSENGER',
+    role: UserRole,
   ) {
     const createUserDto: CreateUserDto = { email, password, name, role };
     const user = await this.usersService.create(createUserDto);

@@ -23,13 +23,16 @@ export class UsersService {
 
     const hashedPassword = await bcrypt.hash(password, this.SALT_ROUNDS);
 
+    const createData: any = {
+      email,
+      password: hashedPassword,
+      name,
+    };
+    if (role) {
+      createData.role = role;
+    }
     return await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        role,
-      },
+      data: createData,
     });
   }
 
@@ -51,7 +54,7 @@ export class UsersService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    const { email, password, name, role } = updateUserDto;
+    const { email, password, name } = updateUserDto;
     let hashedPassword = password;
     if (password)
       hashedPassword = await bcrypt.hash(password, this.SALT_ROUNDS);
@@ -62,7 +65,6 @@ export class UsersService {
         email,
         password: hashedPassword,
         name,
-        role,
       },
     });
   }
