@@ -1,4 +1,3 @@
-// auth/auth.controller.ts
 import { Controller, Post, Body, Res, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -24,7 +23,6 @@ export class AuthController {
     const { accessToken, refreshToken, user } = await this.auth.register(
       dto.email,
       dto.password,
-      dto.name,
       dto.role,
     );
 

@@ -25,13 +25,8 @@ export class AuthService {
     private usersService: UsersService,
   ) {}
 
-  async register(
-    email: string,
-    password: string,
-    name: string,
-    role: UserRole,
-  ) {
-    const createUserDto: CreateUserDto = { email, password, name, role };
+  async register(email: string, password: string, role: UserRole) {
+    const createUserDto: CreateUserDto = { email, password, role };
     const user = await this.usersService.create(createUserDto);
 
     const { accessToken, refreshToken } = await this.generateTokenPair(
@@ -42,7 +37,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email },
     };
   }
 

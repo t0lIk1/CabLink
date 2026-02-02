@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DrizzleService } from 'src/database/database.service';
-import { users } from 'src/schema';
+import { NewUser, users } from 'src/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 
@@ -13,7 +13,7 @@ export class UsersService {
   constructor(private drizzle: DrizzleService) {}
 
   async create(createUserDto: CreateUserDto) {
-    const { email, password, name, role } = createUserDto;
+    const { email, password, role } = createUserDto;
 
     const db = this.drizzle.getDb();
     const existingUser = await db.query.users.findFirst({
@@ -31,7 +31,7 @@ export class UsersService {
       .values({
         email,
         password: hashedPassword,
-        name,
+
         role: role || 'USER',
       })
       .returning();
@@ -68,11 +68,10 @@ export class UsersService {
       throw new BadRequestException('User not found');
     }
 
-    const { email, password, name } = updateUserDto;
-    const updateData: any = {};
+    const { email, password } = updateUserDto;
+    const updateData: Partial<NewUser> = {};
 
     if (email) updateData.email = email;
-    if (name) updateData.name = name;
     if (password) {
       updateData.password = await bcrypt.hash(password, this.SALT_ROUNDS);
     }

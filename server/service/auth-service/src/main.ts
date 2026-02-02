@@ -3,7 +3,6 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  // Log environment variables
   console.log('=== Environment Configuration ===');
   console.log(`PORT: ${process.env.PORT ?? 3001}`);
   console.log(`DATABASE_URL: ${process.env.DATABASE_URL}`);

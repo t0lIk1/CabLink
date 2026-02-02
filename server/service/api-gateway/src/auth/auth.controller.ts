@@ -76,4 +76,6 @@ export class AuthController {
 
     return result;
   }
+
+  @Get
 }
