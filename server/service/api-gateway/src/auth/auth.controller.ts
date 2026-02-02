@@ -1,5 +1,6 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Res, Req } from '@nestjs/common';
 import { GatewayService } from '../gateway.service';
+import type { Response, Request } from 'express';
 
 @Controller('api/auth')
 export class AuthController {
@@ -10,8 +11,11 @@ export class AuthController {
    */
   @Post('login')
   @HttpCode(200)
-  async login(@Body() body: { email: string; password: string }) {
-    return this.gateway.forwardRequest('/auth/login', 'POST', body);
+  async login(
+    @Body() body: { email: string; password: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.gateway.forwardRequest('/auth/login', 'POST', body, {}, res);
   }
 
   /**
@@ -21,8 +25,9 @@ export class AuthController {
   @HttpCode(201)
   async register(
     @Body() body: { email: string; password: string; name?: string },
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.gateway.forwardRequest('/auth/register', 'POST', body);
+    return this.gateway.forwardRequest('/auth/register', 'POST', body, {}, res);
   }
 
   /**
@@ -30,8 +35,22 @@ export class AuthController {
    */
   @Post('refresh')
   @HttpCode(200)
-  async refresh(@Body() body: { refreshToken: string }) {
-    return this.gateway.forwardRequest('/auth/refresh', 'POST', body);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = (req.cookies as Record<string, string>).refreshToken;
+    const headers: Record<string, string> = {};
+    if (req.headers.authorization) {
+      headers.authorization = req.headers.authorization;
+    }
+    return this.gateway.forwardRequest(
+      '/auth/refresh',
+      'POST',
+      { refreshToken },
+      headers,
+      res,
+    );
   }
 
   /**
@@ -39,7 +58,22 @@ export class AuthController {
    */
   @Post('logout')
   @HttpCode(200)
-  async logout(@Body() body: { refreshToken: string }) {
-    return this.gateway.forwardRequest('/auth/logout', 'POST', body);
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = (req.cookies as Record<string, string>).refreshToken;
+    const headers: Record<string, string> = {};
+    if (req.headers.authorization) {
+      headers.authorization = req.headers.authorization;
+    }
+    const result = await this.gateway.forwardRequest(
+      '/auth/logout',
+      'POST',
+      { refreshToken },
+      headers,
+      res,
+    );
+
+    res.clearCookie('refreshToken');
+
+    return result;
   }
 }

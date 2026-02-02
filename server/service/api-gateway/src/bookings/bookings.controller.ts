@@ -35,7 +35,12 @@ export class BookingsController {
    */
   @Get(':id')
   async getBooking(@Param('id') id: string, @Headers() headers: any) {
-    return this.gateway.forwardRequest(`/bookings/${id}`, 'GET', null, headers);
+    return this.gateway.forwardRequest(
+      `/bookings/${id}`,
+      'GET',
+      undefined,
+      headers,
+    );
   }
 
   /**
@@ -49,7 +54,7 @@ export class BookingsController {
     return this.gateway.forwardRequest(
       `/bookings/user/${userId}`,
       'GET',
-      null,
+      undefined,
       headers,
     );
   }

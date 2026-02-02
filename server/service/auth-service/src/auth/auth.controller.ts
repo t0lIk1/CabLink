@@ -51,10 +51,12 @@ export class AuthController {
   @Post('refresh')
   @UseGuards(JwtAuthGuard)
   async refresh(
+    @Body() body: { refreshToken?: string },
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = (req.cookies as Record<string, string>).refreshToken;
+    const refreshToken =
+      body.refreshToken || (req.cookies as Record<string, string>).refreshToken;
     const tokens = await this.auth.refresh(refreshToken);
 
     this.setRefreshTokenCookie(res, tokens.refreshToken);
@@ -64,8 +66,13 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = (req.cookies as Record<string, string>).refreshToken;
+  async logout(
+    @Body() body: { refreshToken?: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken =
+      body.refreshToken || (req.cookies as Record<string, string>).refreshToken;
     await this.auth.logout(refreshToken);
 
     res.clearCookie('refreshToken');

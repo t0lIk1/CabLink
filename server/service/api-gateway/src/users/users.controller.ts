@@ -10,6 +10,11 @@ export class UsersController {
    */
   @Get('profile')
   async getProfile(@Headers() headers: any) {
-    return this.gateway.forwardRequest('/users/profile', 'GET', null, headers);
+    return this.gateway.forwardRequest(
+      '/users/profile',
+      'GET',
+      undefined,
+      headers,
+    );
   }
 }

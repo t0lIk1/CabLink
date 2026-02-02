@@ -67,15 +67,23 @@ export class AuthService {
       where: eq(refreshTokens.revoked, false),
     });
 
+    let found = false;
     for (const t of tokens) {
       if (await bcrypt.compare(refreshToken, t.tokenHash)) {
         await db
           .update(refreshTokens)
           .set({ revoked: true })
           .where(eq(refreshTokens.id, t.id));
+        found = true;
         break;
       }
     }
+
+    if (!found) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return { success: true };
   }
 
   async refresh(refreshToken: string) {
