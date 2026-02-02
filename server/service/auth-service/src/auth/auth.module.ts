@@ -4,13 +4,13 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { PrismaModule } from '../prisma/prisma.module';
+import { DrizzleModule } from '../database/database.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    PrismaModule,
+    DrizzleModule,
     PassportModule,
     UsersModule,
     JwtModule.register({

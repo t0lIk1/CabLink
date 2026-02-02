@@ -1,26 +1,27 @@
+// create-user.dto.ts
 import {
   IsEmail,
-  IsString,
-  MaxLength,
-  MinLength,
   IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
 } from 'class-validator';
-import { UserRole } from '../../generated/prisma/enums';
+import { USER_ROLES } from '../../schema'; // ← обычный импорт (это значение — массив)
+import type { UserRole } from '../../schema'; // ← type-only импорт (только тип)
 
 export class CreateUserDto {
   @IsEmail()
+  @IsNotEmpty()
   email: string;
 
   @IsString()
-  @MinLength(8)
-  @MaxLength(100)
+  @IsNotEmpty()
   password: string;
 
   @IsString()
-  @MinLength(2)
-  @MaxLength(100)
-  name: string;
+  @IsOptional()
+  name?: string;
 
-  @IsEnum(UserRole)
+  @IsEnum(USER_ROLES)
   role: UserRole;
 }

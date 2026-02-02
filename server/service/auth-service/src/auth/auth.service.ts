@@ -1,11 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../prisma/prisma.service';
+import { DrizzleService } from '../database/database.service';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { refreshTokens } from '../schema';
+import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
-import { UserRole } from '../generated/prisma/enums';
+import type { UserRole } from '../schema';
 
 interface TokenPayload {
   sub: string;
@@ -18,7 +20,7 @@ export class AuthService {
   private readonly SALT_ROUNDS = 10;
 
   constructor(
-    private prisma: PrismaService,
+    private drizzle: DrizzleService,
     private jwt: JwtService,
     private usersService: UsersService,
   ) {}
@@ -60,25 +62,29 @@ export class AuthService {
   }
 
   async logout(refreshToken: string) {
-    const tokens = await this.prisma.refreshToken.findMany({
-      where: { revoked: false },
+    const db = this.drizzle.getDb();
+    const tokens = await db.query.refreshTokens.findMany({
+      where: eq(refreshTokens.revoked, false),
     });
 
     for (const t of tokens) {
       if (await bcrypt.compare(refreshToken, t.tokenHash)) {
-        await this.prisma.refreshToken.update({
-          where: { id: t.id },
-          data: { revoked: true },
-        });
+        await db
+          .update(refreshTokens)
+          .set({ revoked: true })
+          .where(eq(refreshTokens.id, t.id));
         break;
       }
     }
   }
 
   async refresh(refreshToken: string) {
-    const tokens = await this.prisma.refreshToken.findMany({
-      where: { revoked: false },
-      include: { user: true },
+    const db = this.drizzle.getDb();
+    const tokens = await db.query.refreshTokens.findMany({
+      where: eq(refreshTokens.revoked, false),
+      with: {
+        user: true,
+      },
     });
 
     let matchedToken: (typeof tokens)[0] | null = null;
@@ -97,10 +103,10 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token expired');
     }
 
-    await this.prisma.refreshToken.update({
-      where: { id: matchedToken.id },
-      data: { revoked: true },
-    });
+    await db
+      .update(refreshTokens)
+      .set({ revoked: true })
+      .where(eq(refreshTokens.id, matchedToken.id));
 
     const { accessToken, refreshToken: newRefreshToken } =
       await this.generateTokenPair(
@@ -110,19 +116,19 @@ export class AuthService {
 
     return { accessToken, refreshToken: newRefreshToken };
   }
-  private async generateTokenPair(userId: string, email: string) {
-    const accessToken = this.jwt.sign({ sub: userId, email } as TokenPayload);
-    const refreshToken = randomUUID();
-    const tokenHash = await bcrypt.hash(refreshToken, this.SALT_ROUNDS);
 
-    await this.prisma.refreshToken.create({
-      data: {
-        userId,
-        tokenHash,
-        expiresAt: new Date(Date.now() + this.REFRESH_TOKEN_EXPIRY),
-      },
+  private async generateTokenPair(userId: string, email: string) {
+    const db = this.drizzle.getDb();
+    const accessToken = this.jwt.sign({ sub: userId, email } as TokenPayload);
+    const refreshTokenValue = randomUUID();
+    const tokenHash = await bcrypt.hash(refreshTokenValue, this.SALT_ROUNDS);
+
+    await db.insert(refreshTokens).values({
+      userId,
+      tokenHash,
+      expiresAt: new Date(Date.now() + this.REFRESH_TOKEN_EXPIRY),
     });
 
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken: refreshTokenValue };
   }
 }
