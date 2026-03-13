@@ -1,98 +1,245 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Auth Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**CabLink** - Microservices-based ride-hailing platform
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Overview
 
-## Description
+The Auth Service handles all authentication and authorization concerns for the CabLink platform. It manages user registration, login, JWT token issuance, refresh token rotation, and user role management.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Features
 
-## Project setup
+- **User Registration** - Create new user accounts with role assignment
+- **User Authentication** - Login with email/password credentials
+- **JWT Token Management** - Issue and validate access tokens
+- **Refresh Token Rotation** - Secure token refresh with rotation
+- **Role-Based Access Control** - Support for multiple user roles (USER, PASSENGER, DRIVER, ADMIN, SUPPORT)
+- **Password Hashing** - bcrypt password hashing for security
+- **Token Revocation** - Logout and token invalidation
 
-```bash
-$ npm install
+## User Roles
+
+| Role | Description |
+|------|-------------|
+| `USER` | Basic user account |
+| `PASSENGER` | Passenger role for booking rides |
+| `DRIVER` | Driver role for accepting rides |
+| `ADMIN` | Administrative access |
+| `SUPPORT` | Customer support access |
+
+## Tech Stack
+
+- **Framework**: NestJS 11
+- **Language**: TypeScript 5.7
+- **Database**: PostgreSQL
+- **ORM**: Drizzle ORM
+- **Authentication**: JWT (passport-jwt)
+- **Password Hashing**: bcrypt
+- **Validation**: class-validator, class-transformer
+
+## Database Schema
+
+### Users Table
+
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  role user_role_enum NOT NULL DEFAULT 'USER',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 ```
 
-## Compile and run the project
+### Refresh Tokens Table
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```sql
+CREATE TABLE refresh_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  token_hash TEXT NOT NULL,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 ```
 
-## Run tests
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/register` | Register new user |
+| POST | `/auth/login` | User login |
+| POST | `/auth/refresh` | Refresh access token |
+| POST | `/auth/logout` | User logout (revoke token) |
+
+### Request/Response Examples
+
+#### Register
 
 ```bash
-# unit tests
-$ npm run test
+POST /auth/register
+Content-Type: application/json
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+{
+  "email": "user@example.com",
+  "password": "securePassword123",
+  "role": "PASSENGER"
+}
 ```
 
-## Deployment
+Response:
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com"
+  }
+}
+```
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+#### Login
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "securePassword123"
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Response:
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-## Resources
+## Installation
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+npm install
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Configuration
 
-## Support
+Create a `.env` file in the root directory:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```env
+# Server Configuration
+PORT=3001
+NODE_ENV=development
 
-## Stay in touch
+# Database Configuration
+DATABASE_URL=postgresql://postgres:password@localhost:5432/cablink_auth
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# JWT Configuration
+JWT_ACCESS_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_EXPIRES_IN=15m
+```
+
+## Database Setup
+
+```bash
+# Generate database migrations
+npm run db:generate
+
+# Push schema to database
+npm run db:push
+
+# Drop database tables
+npm run db:drop
+
+# Open Drizzle Studio (database GUI)
+npm run db:studio
+```
+
+## Running the Service
+
+```bash
+# Development mode (watch mode)
+npm run start:dev
+
+# Production mode
+npm run start:prod
+
+# Debug mode
+npm run start:debug
+```
+
+## Testing
+
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+
+# Watch mode
+npm run test:watch
+```
+
+## Code Quality
+
+```bash
+# Format code
+npm run format
+
+# Lint code
+npm run lint
+```
+
+## Build
+
+```bash
+# Build for production
+npm run build
+```
+
+## Project Structure
+
+```
+src/
+├── auth/
+│   ├── decorators/       # Custom auth decorators (@Roles, @User)
+│   ├── dtos/             # Data transfer objects (RegisterDto, LoginDto)
+│   ├── guards/           # Auth guards (JwtAuthGuard, RolesGuard)
+│   ├── auth.controller.ts
+│   ├── auth.service.ts
+│   └── auth.module.ts
+├── users/
+│   ├── dto/              # User DTOs
+│   ├── users.controller.ts
+│   ├── users.service.ts
+│   └── users.module.ts
+├── database/
+│   ├── database.module.ts
+│   └── database.service.ts
+├── schema.ts             # Database schema definitions
+├── app.module.ts
+└── main.ts
+```
+
+## Security Considerations
+
+- **Password Storage**: All passwords are hashed using bcrypt with 10 salt rounds
+- **Token Security**: Refresh tokens are stored as hashes in the database
+- **Token Rotation**: Refresh tokens are rotated on each use (one-time use)
+- **Cookie Security**: Refresh tokens are stored in httpOnly, secure cookies
+- **Token Expiry**: Access tokens expire after 15 minutes, refresh tokens after 7 days
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED
+
+---
+
+**CabLink** - Connecting riders and drivers seamlessly
